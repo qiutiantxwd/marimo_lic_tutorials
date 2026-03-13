@@ -98,21 +98,27 @@ def _(mo):
     return (channel_slider,)
 
 @app.cell
-def _plotFactorizedEntropyModel(eb_out, plt, torch, channel_slider):
+def _getCDF(net):
+    quantized_cdf = net.entropy_bottleneck._quantized_cdf.cpu().numpy()
+    return (quantized_cdf, )
+
+@app.cell
+def _plotFactorizedEntropyModel(eb_out, plt, torch, quantized_cdf, channel_slider):
     x_vals = torch.linspace(-5, 5, 201).cpu().numpy()
     y_hat_out = eb_out[0][0].detach().cpu().numpy()  # (320, 1, 201)
     likelihoods = eb_out[1][0].detach().cpu().numpy()  # (320, 1, 201)
 
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
 
-    ax.plot(x_vals, likelihoods[channel_slider.value, 0], label=f'ch {channel_slider.value}')
+    axes[0].plot(x_vals, likelihoods[channel_slider.value, 0], label=f'ch {channel_slider.value}')
+    axes[0].set_xlabel('Input')
+    axes[0].set_ylabel('Likelihood')
+    axes[0].set_title('Channel-wise Factorized Entropy Model')
+    axes[0].legend()
+    axes[0].set_xlim([-6, 6])
+    axes[0].set_ylim([-0.2, 1.2])
 
-    ax.set_xlabel('Input')
-    ax.set_ylabel('Likelihood')
-    ax.set_title('Channel-wise Factorized Entropy Model')
-    ax.legend()
-    ax.set_xlim([-6, 6])
-    ax.set_ylim([-0.2, 1.2])
+    axes[1].stem(quantized_cdf[channel_slider.value,:])
     plt.gca()
     return 
 
@@ -138,18 +144,16 @@ def _encForward(net, x, quantization_mode):
 
 
 @app.cell
-def __(plt, img, y_hat, channel_slider):
-    fig1, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].imshow(img)
-    axes[0].set_title('Original Image')
+def _(plt, img, y_hat, channel_slider):
+    fig1, axes1 = plt.subplots(1, 2, figsize=(10, 4))
+    axes1[0].imshow(img)
+    axes1[0].set_title('Original Image')
     channel_image = y_hat[0,channel_slider.value,:,:].detach().cpu().numpy()
-    im = axes[1].imshow(channel_image)
-    axes[1].set_title(f'Latent Channel {channel_slider.value}')
-    fig1.colorbar(im, ax=axes[1], shrink=0.8)
-    plt.tight_layout()
+    im = axes1[1].imshow(channel_image)
+    axes1[1].set_title(f'Latent Channel {channel_slider.value}')
+    fig1.colorbar(im, ax=axes1[1], shrink=0.8)
     plt.gca()
     return
-
 
 
 if __name__ == "__main__":
